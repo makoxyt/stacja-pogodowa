@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Stacja Pogodowa ESP32</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial;
@@ -24,23 +25,71 @@
   <h2>Stacja pogodowa</h2>
   <p>Temperatura: <b><span id="temp">--</span> °C</b></p>
   <p>Wilgotność: <b><span id="hum">--</span> %</b></p>
+  <canvas id="tempChart"></canvas>
 </div>
 
 <script>
-const url = "https://stacja-pogodowa-40f13-default-rtdb.firebaseio.com/weather.json";
+const url =
+"https://stacja-pogodowa-40f13-default-rtdb.firebaseio.com/weather.json";
 
+// tablice do wykresu
+let labels = [];
+let tempData = [];
+
+// inicjalizacja wykresu
+const ctx = document.getElementById('tempChart').getContext('2d');
+const tempChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: 'Temperatura (°C)',
+      data: tempData,
+      borderWidth: 2,
+      fill: false
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: false
+      }
+    }
+  }
+});
+
+// pobieranie danych
 function loadData() {
   fetch(url)
     .then(res => res.json())
     .then(data => {
+
+      // tekst
       document.getElementById("temp").innerText = data.temperature;
       document.getElementById("hum").innerText = data.humidity;
+
+      // etykieta czasu
+      const time = new Date().toLocaleTimeString();
+
+      // max 20 punktów
+      if (labels.length >= 20) {
+        labels.shift();
+        tempData.shift();
+      }
+
+      labels.push(time);
+      tempData.push(data.temperature);
+
+      tempChart.update();
     });
 }
 
+// odświeżanie
 setInterval(loadData, 5000);
 loadData();
 </script>
+
 
 </body>
 </html>
