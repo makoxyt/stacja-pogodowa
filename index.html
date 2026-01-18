@@ -29,21 +29,19 @@
 </div>
 
 <script>
-const url =
-"https://stacja-pogodowa-40f13-default-rtdb.firebaseio.com/weather.json";
+const baseUrl =
+"https://esp32-weather-default-rtdb.europe-west1.firebasedatabase.app/measurements.json";
 
-// tablice do wykresu
-let labels = [];
-let tempData = [];
+const labels = [];
+const tempData = [];
 
-// inicjalizacja wykresu
-const ctx = document.getElementById('tempChart').getContext('2d');
-const tempChart = new Chart(ctx, {
-  type: 'line',
+const ctx = document.getElementById("tempChart").getContext("2d");
+const chart = new Chart(ctx, {
+  type: "line",
   data: {
     labels: labels,
     datasets: [{
-      label: 'Temperatura (°C)',
+      label: "Temperatura (°C)",
       data: tempData,
       borderWidth: 2,
       fill: false
@@ -52,44 +50,40 @@ const tempChart = new Chart(ctx, {
   options: {
     responsive: true,
     scales: {
-      y: {
-        beginAtZero: false
+      x: {
+        ticks: { maxTicksLimit: 10 }
       }
     }
   }
 });
 
-// pobieranie danych
-function loadData() {
-  fetch(url)
-    .then(res => res.json())
+function load24h() {
+  fetch(baseUrl)
+    .then(r => r.json())
     .then(data => {
+      labels.length = 0;
+      tempData.length = 0;
 
-      // tekst
-      document.getElementById("temp").innerText = data.temperature;
-      document.getElementById("hum").innerText = data.humidity;
+      const now = Math.floor(Date.now() / 1000);
+      const limit = now - 86400;
 
-      // etykieta czasu
-      const time = new Date().toLocaleTimeString();
-
-      // max 20 punktów
-      if (labels.length >= 20) {
-        labels.shift();
-        tempData.shift();
+      for (const key in data) {
+        const m = data[key];
+        if (m.timestamp >= limit) {
+          const time = new Date(m.timestamp * 1000)
+                        .toLocaleTimeString();
+          labels.push(time);
+          tempData.push(m.temperature);
+        }
       }
 
-      labels.push(time);
-      tempData.push(data.temperature);
-
-      tempChart.update();
+      chart.update();
     });
 }
 
-// odświeżanie
-setInterval(loadData, 5000);
-loadData();
+load24h();
+setInterval(load24h, 60000);
 </script>
-
 
 </body>
 </html>
