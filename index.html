@@ -1,41 +1,73 @@
 <!DOCTYPE html>
+
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Stacja Pogodowa ESP32</title>
+  <title>Stacja pogodowa ESP8266</title>
+
+  <!-- Chart.js -->
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     body {
-      font-family: Arial;
-      text-align: center;
+      font-family: Arial, sans-serif;
       background: #f2f2f2;
+      margin: 0;
+      padding: 0;
+      text-align: center;
     }
+
     .box {
-      background: white;
+      background: #ffffff;
+      max-width: 900px;
+      margin: 40px auto;
       padding: 20px;
-      margin: 50px auto;
-      width: 300px;
       border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .values {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    canvas {
+      max-height: 400px;
     }
   </style>
+
 </head>
+
 <body>
 
 <div class="box">
-  <h2>Stacja pogodowa</h2>
-  <p>Temperatura: <b><span id="temp">--</span> °C</b></p>
-  <p>Wilgotność: <b><span id="hum">--</span> %</b></p>
-  <canvas id="tempChart"></canvas>
+  <h2>Stacja pogodowa – ostatnie 24h</h2>
+
+  <div class="values">
+    Temperatura: <b><span id="temp">--</span> °C</b><br>
+    Wilgotność: <b><span id="hum">--</span> %</b>
+  </div>
+
+<canvas id="tempChart"></canvas>
+
 </div>
 
 <script>
-const baseUrl =
-"https://esp32-weather-default-rtdb.europe-west1.firebasedatabase.app/measurements.json";
+/* ================== FIREBASE ================== */
+const FIREBASE_URL =
+"https://TWOJ-PROJEKT-default-rtdb.europe-west1.firebasedatabase.app/measurements.json";
 
+/* ================== WYKRES ================== */
 const labels = [];
 const tempData = [];
 
 const ctx = document.getElementById("tempChart").getContext("2d");
+
 const chart = new Chart(ctx, {
   type: "line",
   data: {
@@ -44,45 +76,64 @@ const chart = new Chart(ctx, {
       label: "Temperatura (°C)",
       data: tempData,
       borderWidth: 2,
-      fill: false
+      fill: false,
+      tension: 0.2
     }]
   },
   options: {
     responsive: true,
     scales: {
       x: {
-        ticks: { maxTicksLimit: 10 }
+        ticks: {
+          maxTicksLimit: 12
+        }
       }
     }
   }
 });
 
-function load24h() {
-  fetch(baseUrl)
-    .then(r => r.json())
+/* ================== LOGIKA 24H ================== */
+function loadLast24h() {
+  fetch(FIREBASE_URL)
+    .then(res => res.json())
     .then(data => {
+
       labels.length = 0;
       tempData.length = 0;
 
       const now = Math.floor(Date.now() / 1000);
-      const limit = now - 86400;
+      const limit = now - 86400; // 24h
+
+      let lastTemp = null;
+      let lastHum  = null;
 
       for (const key in data) {
         const m = data[key];
+
         if (m.timestamp >= limit) {
-          const time = new Date(m.timestamp * 1000)
-                        .toLocaleTimeString();
-          labels.push(time);
+          const timeLabel =
+            new Date(m.timestamp * 1000).toLocaleTimeString();
+
+          labels.push(timeLabel);
           tempData.push(m.temperature);
+
+          lastTemp = m.temperature;
+          lastHum  = m.humidity;
         }
+      }
+
+      if (lastTemp !== null) {
+        document.getElementById("temp").innerText = lastTemp.toFixed(1);
+        document.getElementById("hum").innerText  = lastHum.toFixed(1);
       }
 
       chart.update();
     });
 }
 
-load24h();
-setInterval(load24h, 60000);
+/* ================== START ================== */
+loadLast24h();
+setInterval(loadLast24h, 60000); // odświeżanie co 1 minutę
 </script>
 
 </body>
